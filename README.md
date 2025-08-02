@@ -4,6 +4,7 @@
 
 A Flexible Godot Plugin for AI Assistants
 -----------------------------------------
+**Latest version: 1.6.3**
 
 Embed AI assistants in Godot with the ability to read and write code in Godot's Code Editor.
 
