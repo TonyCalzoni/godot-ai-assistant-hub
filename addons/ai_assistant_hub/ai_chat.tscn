@@ -113,10 +113,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -4.0
-offset_top = -71.0
-offset_right = 35.0
-offset_bottom = -31.0
+offset_left = -1.0
+offset_top = -60.0
+offset_right = 38.0
+offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
 scale = Vector2(0.7, 0.7)
@@ -150,6 +150,15 @@ layout_mode = 2
 [node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 4
+
+[node name="SaveCheckButton" type="CheckButton" parent="HBoxContainer/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "If selected this chat will still be here the next time you open Godot."
+text = "Save"
+
+[node name="VSeparator2" type="VSeparator" parent="HBoxContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
 
 [node name="TemperatureOverrideCheckbox" type="CheckBox" parent="HBoxContainer/VBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
@@ -214,6 +223,7 @@ stream = ExtResource("5_mmsii")
 [connection signal="request_completed" from="ModelsHTTPRequest" to="." method="_on_models_http_request_request_completed"]
 [connection signal="pressed" from="HBoxContainer/VBoxContainer/VSplitContainer/HBoxContainer/MarginContainer/EditHistory" to="." method="_on_edit_history_pressed"]
 [connection signal="pressed" from="HBoxContainer/VBoxContainer/VSplitContainer/HBoxContainer/MarginContainer/BotCancel" to="." method="_abandon_request"]
+[connection signal="toggled" from="HBoxContainer/VBoxContainer/HBoxContainer/SaveCheckButton" to="." method="_on_save_check_button_toggled"]
 [connection signal="toggled" from="HBoxContainer/VBoxContainer/HBoxContainer/TemperatureOverrideCheckbox" to="." method="_on_temperature_override_checkbox_toggled"]
 [connection signal="value_changed" from="HBoxContainer/VBoxContainer/HBoxContainer/TemperatureSliderContainer/TemperatureSlider" to="." method="_on_temperature_slider_value_changed"]
 [connection signal="item_selected" from="HBoxContainer/VBoxContainer/HBoxContainer/ModelOptionsBtn" to="." method="_on_model_options_btn_item_selected"]

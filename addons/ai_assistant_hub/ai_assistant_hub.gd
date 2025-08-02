@@ -4,6 +4,7 @@ extends Control
 
 const NEW_AI_ASSISTANT_BUTTON = preload("res://addons/ai_assistant_hub/new_ai_assistant_button.tscn")
 const NEW_AI_ASSISTANT_TYPE_WINDOW = preload("res://addons/ai_assistant_hub/new_ai_assistant_type_window.tscn")
+const AI_CHAT = preload("res://addons/ai_assistant_hub/ai_chat.tscn")
 
 @onready var models_http_request: HTTPRequest = %ModelsHTTPRequest
 @onready var url_txt: LineEdit = %UrlTxt
@@ -27,9 +28,21 @@ var _current_api_id:String
 
 func _tab_changed(tab_index: int) -> void:
 	if tab_index > 0:
-		_tab_bar.tab_close_display_policy = TabBar.CLOSE_BUTTON_SHOW_ACTIVE_ONLY
+		var chat = tab_container.get_current_tab_control()
+		if chat is AIChat and chat.save_check_button.button_pressed:
+			_tab_bar.tab_close_display_policy = TabBar.CLOSE_BUTTON_SHOW_NEVER
+		else:
+			_tab_bar.tab_close_display_policy = TabBar.CLOSE_BUTTON_SHOW_ACTIVE_ONLY
 	else:
 		_tab_bar.tab_close_display_policy = TabBar.CLOSE_BUTTON_SHOW_NEVER
+
+
+func _on_chat_save_changed(chat:AIChat, save_on:bool) -> void:
+	if tab_container.get_current_tab_control() == chat:
+		if save_on:
+			_tab_bar.tab_close_display_policy = TabBar.CLOSE_BUTTON_SHOW_NEVER
+		else:
+			_tab_bar.tab_close_display_policy = TabBar.CLOSE_BUTTON_SHOW_ACTIVE_ONLY
 
 
 func _close_tab(tab_index: int) -> void:
@@ -48,6 +61,8 @@ func initialize(plugin:AIHubPlugin) -> void:
 	_tab_bar = tab_container.get_tab_bar()
 	_tab_bar.tab_changed.connect(_tab_changed)
 	_tab_bar.tab_close_pressed.connect(_close_tab)
+	
+	_load_saved_chats()
 
 
 # Initialize LLM provider options
@@ -198,10 +213,11 @@ func _on_assistant_button_menu_select(id: int, assistant_file: String) -> void:
 			EditorInterface.get_resource_filesystem().scan()
 
 
-func _on_new_bot_btn_chat_created(chat:AIChat, assistant_type:AIAssistantResource) -> void:
+func _on_new_bot_btn_chat_created(chat:AIChat) -> void:
 	tab_container.add_child(chat)
-	tab_container.set_tab_icon(tab_container.get_child_count() - 1, assistant_type.type_icon)
+	tab_container.set_tab_icon(tab_container.get_child_count() - 1, chat.get_assistant_settings().type_icon)
 	tab_container.current_tab = chat.get_index()
+	chat.save_changed.connect(_on_chat_save_changed)
 
 
 func _get_all_resources(path: String) -> Array[String]:  
@@ -257,3 +273,22 @@ func _on_models_list_item_selected(index: int) -> void:
 func _on_models_list_empty_clicked(at_position: Vector2, mouse_button_index: int) -> void:
 	models_list.deselect_all()
 	new_assistant_type_button.disabled = true
+
+
+func _load_saved_chats() -> void:
+	var dir = DirAccess.open(AIChat.SAVE_PATH)  
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()  
+		while not file_name.is_empty():  
+			if file_name.ends_with(".cfg"):
+				var file_path = "%s/%s" % [ AIChat.SAVE_PATH , file_name ]
+				_load_chat(file_path)
+			file_name = dir.get_next()
+	tab_container.current_tab = 0
+
+
+func _load_chat(file_path:String) -> void:
+	var chat = AI_CHAT.instantiate()
+	chat.initialize_from_file(_plugin, file_path)
+	_on_new_bot_btn_chat_created(chat)

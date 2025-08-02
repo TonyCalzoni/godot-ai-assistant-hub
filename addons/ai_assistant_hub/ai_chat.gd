@@ -3,6 +3,7 @@ class_name AIChat
 extends Control
 
 signal models_loaded
+signal save_changed(chat:AIChat, save_on:bool)
 
 enum Caller {
 	You,
@@ -11,6 +12,7 @@ enum Caller {
 }
 
 const CHAT_HISTORY_EDITOR = preload("res://addons/ai_assistant_hub/chat_history_editor.tscn")
+const SAVE_PATH := "user://ai_assistant_hub/saved_chats/"
 
 @onready var http_request: HTTPRequest = %HTTPRequest
 @onready var models_http_request: HTTPRequest = %ModelsHTTPRequest
@@ -25,6 +27,8 @@ const CHAT_HISTORY_EDITOR = preload("res://addons/ai_assistant_hub/chat_history_
 @onready var temperature_override_checkbox: CheckBox = %TemperatureOverrideCheckbox
 @onready var temperature_slider_container: HBoxContainer = %TemperatureSliderContainer
 @onready var api_label: Label = %APILabel
+@onready var bot_cancel: Button = %BotCancel
+@onready var save_check_button: CheckButton = %SaveCheckButton
 
 var _plugin:AIHubPlugin
 var _bot_name: String
@@ -34,40 +38,46 @@ var _code_selector: AssistantToolSelection
 var _bot_answer_handler: AIAnswerHandler
 var _llm: LLMInterface
 var _conversation: AIConversation
+var _chat_save_path: String
 
 
 func initialize(plugin:AIHubPlugin, assistant_settings: AIAssistantResource, bot_name:String) -> void:
-	await ready
 	_plugin = plugin
 	_assistant_settings = assistant_settings
 	_bot_name = bot_name
+	if not is_node_ready():
+		await ready
 	_code_selector = AssistantToolSelection.new(plugin)
 	_bot_answer_handler = AIAnswerHandler.new(plugin, _code_selector)
 	_bot_answer_handler.bot_message_produced.connect(func(message): _add_to_chat(message, Caller.Bot) )
 	_bot_answer_handler.error_message_produced.connect(func(message): _add_to_chat(message, Caller.System) )
-	var llm_provider: LLMProviderResource = assistant_settings.llm_provider
+	_set_tab_label()
+	
+	if _chat_save_path.is_empty():
+		var save_id = ("%s_%s_%s" % [Time.get_datetime_string_from_system(), assistant_settings.type_name, bot_name]).validate_filename()
+		_chat_save_path = SAVE_PATH + save_id + ".cfg"
+		if not DirAccess.dir_exists_absolute(SAVE_PATH):
+			DirAccess.make_dir_absolute(SAVE_PATH)
+	
+	var llm_provider:= _find_llm_provider()
 	if llm_provider == null:
-		_add_to_chat("Warning: Assistant %s does not have LLM provider. Using the current LLM API selected in the main tab." % assistant_settings.type_name, Caller.System)
-		llm_provider = plugin.get_current_llm_provider()
-		if llm_provider == null:
-			_add_to_chat("ERROR: No LLM provider found.", Caller.System)
-			return
+		_add_to_chat("ERROR: No LLM provider found.", Caller.System)
+		return
 	api_label.text = llm_provider.name
-	_conversation = AIConversation.new(
-		llm_provider.system_role_name,
-		llm_provider.user_role_name,
-		llm_provider.assistant_role_name
-	)
-		
+	var new_conversation:= _conversation == null
+	if new_conversation:
+		_create_conversation(llm_provider)
+	
 	if _assistant_settings: # We need to check this, otherwise this is called when editing the plugin
 		_load_api(llm_provider)
-		_conversation.set_system_message("%s\nYour name is %s." % [_assistant_settings.ai_description, _bot_name])
-		
 		temperature_slider.value = assistant_settings.custom_temperature
 		temperature_override_checkbox.button_pressed = assistant_settings.use_custom_temperature
 		_on_temperature_override_checkbox_toggled(temperature_override_checkbox.button_pressed)
 		
-		bot_portrait.set_random()
+		if new_conversation:
+			_conversation.set_system_message("%s\nYour name is %s." % [_assistant_settings.ai_description, _bot_name])
+			bot_portrait.set_random()
+		bot_portrait.think.connect(func(value:bool): bot_cancel.visible = value)
 		reply_sound.pitch_scale = randf_range(0.7, 1.2)
 	
 		for qp in _assistant_settings.quick_prompts:
@@ -80,10 +90,96 @@ func initialize(plugin:AIHubPlugin, assistant_settings: AIAssistantResource, bot
 			quick_prompts_panel.add_child(qp_button)
 		
 		_llm.send_get_models_request(models_http_request)
-		await models_loaded
 		prompt_txt.text = ""
 		prompt_txt.editable = true
-		_greet()
+		if new_conversation:
+			_greet()
+
+
+func get_assistant_settings() -> AIAssistantResource:
+	return _assistant_settings
+
+
+func initialize_from_file(plugin:AIHubPlugin, file:String) -> void:
+	_plugin = plugin
+	_chat_save_path = file
+	if not is_node_ready():
+		await ready
+	var config = ConfigFile.new()
+	config.load(_chat_save_path)
+	var res_path = config.get_value("setup","assistant_res")
+	_assistant_settings = load(res_path)
+	var bot_name:String = config.get_value("setup","bot_name")
+	var system_message:String = config.get_value("setup","system_message")
+	var chat_history:Array = config.get_value("chat","entries")
+	var llm_provider:= _find_llm_provider()
+	if llm_provider == null:
+		_add_to_chat("ERROR: No LLM provider found.", Caller.System)
+		return
+	_create_conversation(llm_provider)
+	_conversation.set_system_message(system_message)
+	await initialize(plugin, _assistant_settings, bot_name)
+	_conversation.overwrite_chat(chat_history)
+	_conversation.set_system_message(chat_history[0].content)
+	_load_conversation_to_chat(chat_history)
+	var port_base_region:Rect2 = config.get_value("portrait","base_region")
+	var port_mouth_region:Rect2 = config.get_value("portrait","mouth_region")
+	var port_eyes_region:Rect2 = config.get_value("portrait","eyes_region")
+	bot_portrait.load_regions(port_base_region, port_mouth_region, port_eyes_region)
+	save_check_button.button_pressed = true
+
+
+func _create_save_file() -> void:
+	var config = ConfigFile.new()
+	config.load(_chat_save_path)
+	config.set_value("setup","assistant_res",_assistant_settings.resource_path)
+	config.set_value("setup","bot_name",_bot_name)
+	config.set_value("setup","system_message", _conversation.get_system_message())
+	config.set_value("portrait","base_region",bot_portrait.get_portrait_base_region())
+	config.set_value("portrait","mouth_region",bot_portrait.get_portrait_mouth_region())
+	config.set_value("portrait","eyes_region",bot_portrait.get_portrait_eyes_region())
+	config.set_value("chat","entries", _conversation.clone_chat())
+	config.save(_chat_save_path)
+
+
+func _create_conversation(llm_provider: LLMProviderResource) -> void:
+	_conversation = AIConversation.new(
+		llm_provider.system_role_name,
+		llm_provider.user_role_name,
+		llm_provider.assistant_role_name
+	)
+	_conversation.chat_edited.connect(_on_conversation_chat_edited)
+	_conversation.chat_appended.connect(_on_conversation_chat_appended)
+
+
+func _find_llm_provider() -> LLMProviderResource:
+	var llm_provider := _assistant_settings.llm_provider
+	if llm_provider == null:
+		_add_to_chat("Warning: Assistant %s does not have LLM provider. Using the current LLM API selected in the main tab." % _assistant_settings.type_name, Caller.System)
+		llm_provider = _plugin.get_current_llm_provider()
+	return llm_provider
+
+
+func _set_tab_label() -> void:
+	if _assistant_settings.type_icon == null:
+		var tab_type_name = _assistant_settings.type_name
+		if tab_type_name.is_empty():
+			tab_type_name = _assistant_settings.resource_path.get_file().trim_suffix(".tres")
+		name = "[%s] %s" % [tab_type_name, _bot_name]
+	else:
+		name = "%s" % [_bot_name]
+
+
+func _load_conversation_to_chat(chat_history:Array) -> void:
+	output_window.clear()
+	var llm_provider: LLMProviderResource = _assistant_settings.llm_provider
+	for entry in chat_history:
+		if entry.has("role") and entry.has("content"):
+			if entry.role == llm_provider.user_role_name:
+				_add_to_chat(entry.content, Caller.You)
+			elif entry.role == llm_provider.assistant_role_name:
+				_add_to_chat(entry.content, Caller.Bot)
+	output_window.scroll_to_line(output_window.get_line_count())
 
 
 func _load_api(llm_provider:LLMProviderResource) -> void:
@@ -190,6 +286,10 @@ func _on_http_request_completed(result: int, response_code: int, headers: Packed
 		_add_to_chat("An error occurred while communicating with the assistant. Review the details in Godot's Output tab.", Caller.System)
 
 
+func escape_bbcode(bbcode_text):
+	return bbcode_text.replace("[", "[lb]")
+
+
 func _add_to_chat(text:String, caller:Caller) -> void:
 	var auto_scroll_to_bottom: bool = ProjectSettings.get_setting(AIHubPlugin.PREF_SCROLL_BOTTOM, false)
 	
@@ -217,21 +317,24 @@ func _add_to_chat(text:String, caller:Caller) -> void:
 				# Format markup response with code
 				var parts:= text.split("```")
 				var writing_code := false
+				
 				for part in parts:
 					if writing_code:
-						var subparts = part.split("\n", true, 1)
+						var subparts: = part.split("\n", true, 1)
 						output_window.push_color(Color(0x676767FF))
-						output_window.append_text("```%s" % subparts[0])
-						output_window.push_indent(1)
+						output_window.append_text("```%s" % escape_bbcode(subparts[0]))
 						output_window.push_color(Color(0x33AAFFFF))
+						output_window.push_indent(1)
+						output_window.push_mono()
 						if subparts.size() > 1:
-							output_window.append_text("[code]%s[/code]" % subparts[1])
+							output_window.append_text("%s" % escape_bbcode(subparts[1]))
+						output_window.pop()
 						output_window.pop()
 						output_window.pop()
 						output_window.append_text("```")
 						output_window.pop()
 					else:
-						output_window.append_text(part)
+						output_window.append_text(escape_bbcode(part))
 					writing_code = !writing_code
 				output_window.append_text("\n")
 			else:
@@ -315,3 +418,29 @@ func _scroll_output_by_page() -> void:
 	var new_value = min(v_scroll_bar.value + visible_height, v_scroll_bar.max_value)
 	# Set the new scroll position
 	v_scroll_bar.value = new_value
+
+
+func _on_save_check_button_toggled(toggled_on: bool) -> void:
+	save_changed.emit(self, toggled_on)
+	if toggled_on:
+		_create_save_file()
+	else:
+		DirAccess.remove_absolute(_chat_save_path)
+
+
+func _on_conversation_chat_edited(chat_history:Array) -> void:
+	if save_check_button.button_pressed:
+		_create_save_file()
+	_load_conversation_to_chat(chat_history)
+
+
+func _on_conversation_chat_appended(new_entry:Dictionary) -> void:
+	if save_check_button.button_pressed:
+		var config = ConfigFile.new()
+		var load_result := config.load(_chat_save_path)
+		if load_result != OK:
+			_create_save_file()
+		else:
+			var current_chat:Array = config.get_value("chat","entries", [])
+			current_chat.append(new_entry)
+			config.save(_chat_save_path)

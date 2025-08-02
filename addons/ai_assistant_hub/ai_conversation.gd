@@ -1,6 +1,9 @@
 @tool
 class_name AIConversation
 
+signal chat_appended(new_entry:Dictionary)
+signal chat_edited(chat_history:Array)
+
 var _chat_history:= []
 var _system_msg: String
 var _system_role_name:String
@@ -28,30 +31,28 @@ func get_assistant_role_name() -> String:
 
 func set_system_message(message:String) -> void:
 	_system_msg = message
-	# If your models don't mark the code with ```gdscript, the plugin won't wort well,
-	# consider giving it an instruction like the one in the comment below, either in the
-	# _system_msg or as part of the bot initial request.
-	#
-	#_system_msg = "%s. Any code you write you should identify with the programming language, for example for GDScript you must use prefix \"```gdscript\" and suffix \"```\"." % message
-	#
+
+
+func get_system_message() -> String:
+	return _system_msg
 
 
 func add_user_prompt(prompt:String) -> void:
-	_chat_history.append(
-		{
-			"role": _user_role_name,
-			"content": prompt
-		}
-	)
+	var entry := {
+		"role": _user_role_name,
+		"content": prompt
+	}
+	_chat_history.append(entry)
+	chat_appended.emit(entry)
 
 
 func add_assistant_response(response:String) -> void:
-	_chat_history.append(
-		{
-			"role": _assistant_role_name,
-			"content": response
-		}
-	)
+	var entry := {
+		"role": _assistant_role_name,
+		"content": response
+	}
+	_chat_history.append(entry)
+	chat_appended.emit(entry)
 
 
 func build() -> Array:
@@ -68,6 +69,7 @@ func build() -> Array:
 
 func forget_last_prompt() -> void:
 	_chat_history.pop_back()
+	chat_edited.emit(_chat_history)
 
 
 func clone_chat() -> Array:
@@ -76,3 +78,4 @@ func clone_chat() -> Array:
 
 func overwrite_chat(new_chat:Array) -> void:
 	_chat_history = new_chat
+	chat_edited.emit(_chat_history)
