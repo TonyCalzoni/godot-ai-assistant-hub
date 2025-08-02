@@ -93,10 +93,6 @@ func send_chat_request(http_request: HTTPRequest, message_list: Array) -> bool:
 		var text = msg.get("content", msg.get("text", msg))
 		text = _extract_content_from_json_string(text)
 
-		# If it's the first message and it's a system message, change the role to user
-		if i == 0 and role == "system":
-			role = "user"
-
 		formatted_contents.append({
 			"role": role,
 			"parts": [ { "text": str(text) } ]
