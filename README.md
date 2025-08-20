@@ -1,10 +1,12 @@
 **Godot AI Assistant Hub**
 <img src="https://github.com/FlamxGames/godot-ai-assistant-hub/blob/main/logo.png" width="50px">
 ==========================
+**Latest version: 1.7.0**
+<sub>([What's new?](#whats-new-in-the-latest-version))</sub>
+<sub>([Upgrading to a newer version](#upgrading-to-a-newer-version))</sub>
 
 A Flexible Godot Plugin for AI Assistants
 -----------------------------------------
-**Latest version: 1.6.3**
 
 Embed AI assistants in Godot with the ability to read and write code in Godot's Code Editor.
 
@@ -16,6 +18,7 @@ If you use ChatGPT, Gemini, or similar tools with a REST API, you could easily e
 
 Thanks to contributors, additionally to **Ollama**, the following APIs are already supported:
 * Google Gemini
+* Ollama Turbo
 * OpenRouter
 * Jan
 * OpenWebUI
@@ -117,6 +120,10 @@ Some popular models that work fine in low-end computers at the time I wrote this
 
 If you have a powerful PC, just keep increasing the level of the model. You will see many models have versions like 1.5B, 3B, 7B, 30B, 77B, these mean billions of parameters. You can consider 1.5B for very low-end machines, and 77B for very powerful ones. If you are not sure, just try them out, they are easy to delete as well.
 
+**What's new in the latest version**
+-----------------------
+* Ollama Turbo support
+
 **Upgrading to a newer version**
 -----------------------
 If you had the plugin installed and want to upgrade to the latest version, after downloading it, follow these steps:
@@ -126,7 +133,7 @@ If you had the plugin installed and want to upgrade to the latest version, after
 3. Ensure Godot loads into memory the new version: **Project > Reload Current Project**
 4. **Enable** the plugin. You should not see any errors in the output tab, but in some cases you may see some message confirming the migration of old settings.
 
-**Leave a contribution!**
+**Leave a contribution**
 -----------------------
 If you like this project check the following page for ideas about how to support it: https://github.com/FlamxGames/godot-ai-assistant-hub/blob/main/support.md
 
