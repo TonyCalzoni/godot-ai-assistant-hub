@@ -124,6 +124,8 @@ If you have a powerful PC, just keep increasing the level of the model. You will
 -----------------------
 * Ollama Turbo support
 
+[Full version history](versions.md)
+
 **Upgrading to a newer version**
 -----------------------
 If you had the plugin installed and want to upgrade to the latest version, follow these steps:
