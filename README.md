@@ -126,12 +126,15 @@ If you have a powerful PC, just keep increasing the level of the model. You will
 
 **Upgrading to a newer version**
 -----------------------
-If you had the plugin installed and want to upgrade to the latest version, after downloading it, follow these steps:
+If you had the plugin installed and want to upgrade to the latest version, follow these steps:
 
-1. **Disable** the plugin from **Project > Project Settings... > Plugins**.
-2. Pull the **ai_assistant_hub** folder from the new version into your addons folder (don't delete the previous one so you don't lose your assistants). You may see errors in Godot's output tab, that is fine.
-3. Ensure Godot loads into memory the new version: **Project > Reload Current Project**
-4. **Enable** the plugin. You should not see any errors in the output tab, but in some cases you may see some message confirming the migration of old settings.
+***Download > Disable current > Install new > Reload project > Enable***
+
+1. Download the latest version from GitHub.
+2. **Disable** the plugin from **Project > Project Settings... > Plugins**.
+3. Pull the **ai_assistant_hub** folder from the new version into your addons folder (don't delete the previous one so you don't lose your assistants). You may see errors in Godot's output tab, that is fine.
+4. Ensure Godot loads into memory the new version: **Project > Reload Current Project** (this will reload the whole project, so make sure to save before doing this).
+5. **Enable** the plugin. You should not see any errors in the output tab, but in some cases you may see some message confirming the migration of old settings.
 
 **Leave a contribution**
 -----------------------
