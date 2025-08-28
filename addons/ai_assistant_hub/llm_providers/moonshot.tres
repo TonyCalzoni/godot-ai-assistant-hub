@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="LLMProviderResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/ai_assistant_hub/llm_providers/llm_provider_resource.gd" id="1_kvebo"]
+
+[resource]
+script = ExtResource("1_kvebo")
+api_id = "moonshot_api"
+name = "Moonshot"
+description = "Kimi! 🖤"
+requires_key = true
+get_key_url = ""
+fix_url = "https://api.moonshot.ai/v1"
+models_url_postfix = "/models"
+chat_url_postfix = "/chat/completions"
+system_role_name = "system"
+user_role_name = "user"
+assistant_role_name = "kimi"
+metadata/_custom_type_script = 
