@@ -22,6 +22,7 @@ Thanks to contributors, additionally to **Ollama**, the following APIs are alrea
 * OpenRouter
 * Jan
 * OpenWebUI
+* Moonshot's Kimi
 
 First Video 👇
 
